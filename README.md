@@ -1,5 +1,5 @@
-# blottograd
-me learning and probably failing to implement autograd basics from scratch in python
+# gradflow
+A minimal computational graph with autograd. 
 
 ### some resources
 
