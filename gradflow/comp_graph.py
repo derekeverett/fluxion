@@ -52,31 +52,31 @@ class Dot(Node):
         return self.out
     
     def vjp_fun_lhs(self, input: np.array, mult: np.array, vec: np.array) -> np.array:
-        print(f"input.shape, mult.shape, vec.shape = {input.shape}, {mult.shape}, {vec.shape}")
+        # print(f"input.shape, mult.shape, vec.shape = {input.shape}, {mult.shape}, {vec.shape}")
         vjp = np.dot(vec, mult.T)
-        print(f"vjp.shape = {vjp.shape}")
+        # print(f"vjp.shape = {vjp.shape}")
         return vjp
 
     def vjp_fun_rhs(self, input: np.array, mult: np.array, vec: np.array) -> np.array:
-        print(f"input.shape, mult.shape, vec.shape = {input.shape}, {mult.shape}, {vec.shape}")
+        # print(f"input.shape, mult.shape, vec.shape = {input.shape}, {mult.shape}, {vec.shape}")
         # vjp = np.dot(vec, mult).T
         vjp = np.dot(vec.T, mult).T
-        print(f"vjp.shape = {vjp.shape}")
+        # print(f"vjp.shape = {vjp.shape}")
         return vjp
 
     def backward(self) -> np.array:
         # Accumulate gradient into inputs w/ chain rule
         lhs, rhs = self.inputs[0], self.inputs[1]
-        print(f"lhs.d_out.shape: {lhs.d_out.shape}")
+        # print(f"lhs.d_out.shape: {lhs.d_out.shape}")
         # print(f"lhs.d_out: {lhs.d_out}")
         d_lhs = self.vjp_fun_lhs(lhs.out, rhs.out, self.d_out)
-        print(f"d_lhs.shape: {d_lhs.shape}")
+        # print(f"d_lhs.shape: {d_lhs.shape}")
         lhs.d_out += d_lhs
 
-        print(f"rhs.d_out.shape: {rhs.d_out.shape}")
+        # print(f"rhs.d_out.shape: {rhs.d_out.shape}")
         # print(f"rhs.d_out: {rhs.d_out}")
         d_rhs = self.vjp_fun_rhs(rhs.out, lhs.out, self.d_out)
-        print(f"d_rhs.shape: {d_rhs.shape}")
+        # print(f"d_rhs.shape: {d_rhs.shape}")
         rhs.d_out += d_rhs
         return self.d_out
     
@@ -88,14 +88,38 @@ class Tanh(Node):
 
     def forward(self, input: Node) -> np.array:
         self.inputs = [input]  # store references to input nodes
-        self.out = np.tanh(input)
-        self.d_out = np.zeros_like(input)
+        self.out = np.tanh(input.out)
+        self.d_out = np.zeros_like(self.out)
         return self.out
     
     def vjp_fun(self, input: np.array, vec: np.array) -> np.array:
         # The VJP w.r.t. input of np.tanh(input)
         sech2 = 1./ (np.cosh(input)**2.)
         return vec * sech2
+
+    def backward(self) -> np.array:
+        # Accumulate gradient into inputs w/ chain rule
+        input = self.inputs[0]
+        d_input = self.vjp_fun(input.out, self.d_out)
+        input.d_out += d_input
+        return self.d_out
+    
+class ReLU(Node):
+    """This node computes a ReLU operation on the input node."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+
+    def forward(self, input: Node) -> np.array:
+        self.inputs = [input]  # store references to input nodes
+        self.out = input.out * (input.out > 0)
+        self.d_out = np.zeros_like(self.out)
+        return self.out
+    
+    def vjp_fun(self, input: np.array, vec: np.array) -> np.array:
+        # The VJP w.r.t. input of ReLU(input)
+        fac = 1. * (input > 0)
+        return vec * fac
 
     def backward(self) -> np.array:
         # Accumulate gradient into inputs w/ chain rule
