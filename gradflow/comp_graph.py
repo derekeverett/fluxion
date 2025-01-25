@@ -11,7 +11,7 @@ class Node:
         self.name = name
         self.out: Optional[np.array] = None
         self.d_out: Optional[np.array] = None
-        self.inputs: List['GraphNode'] = []
+        self.inputs: List['Node'] = []
 
     def forward(self, *args, **kwargs) -> np.array:
         """Computes the forward pass of the node."""
@@ -127,3 +127,41 @@ class ReLU(Node):
         d_input = self.vjp_fun(input.out, self.d_out)
         input.d_out += d_input
         return self.d_out
+
+class Graph:
+    """A base class for computation graphs."""
+    
+    def __init__(self, name: str, out_nodes: List['Node']) -> None:
+        self.name = name
+        self.out_nodes = out_nodes
+
+    def topo_sort(self) -> List['Node']:
+        topo_sorted = []
+        visited = set()
+        def build_topo(v):
+            if v not in visited:
+                visited.add(v)
+                for in_node in v.inputs:
+                    build_topo(in_node)
+                topo_sorted.append(v)
+        
+        for node in self.out_nodes:
+            build_topo(node)
+        # print(f"reversed(topo_sorted): ")
+        # for node in reversed(topo_sorted):
+        #     print(f"{node.name}")
+        return reversed(topo_sorted)
+
+    def backward(self) -> None:
+        """Computes the backward pass over the graph."""
+
+        # do topo sort
+        topo_sorted = self.topo_sort()
+
+        # initiate the vjp of each output node
+        for node in self.out_nodes:
+            node.d_out = np.array([[1.]])
+            
+        # now call backward on every node in topo order
+        for node in topo_sorted:
+            node.backward()
