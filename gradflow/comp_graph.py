@@ -127,6 +127,36 @@ class ReLU(Node):
         d_input = self.vjp_fun(input.out, self.d_out)
         input.d_out += d_input
         return self.d_out
+    
+class MSELoss(Node):
+    """This node computes the mean squared error."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+
+    def forward(self, y: Node, y_true: np.array) -> np.array:
+        self.inputs = [y]  # store references to input nodes
+        err = (y.out - y_true)
+        self.err = err
+        n = err.shape[0]
+        # y.out and y_true should be (B, 1) where B is batch size
+        # so the mean squared error is np.dot(err.T, err) / n
+        self.out = np.dot(err.T, err) / n
+        self.d_out = np.zeros_like(self.out)
+        return self.out
+    
+    def vjp_fun(self, vec: np.array) -> np.array:
+        # The VJP f(y) = (err)^2 = (y - y_true)^2 w.r.t. y
+        n = self.err.shape[0]
+        # return np.dot(vec, 2*self.err/n)
+        return vec * 2*self.err/n
+
+    def backward(self) -> np.array:
+        # Accumulate gradient into inputs w/ chain rule
+        input = self.inputs[0]
+        d_input = self.vjp_fun(self.d_out)
+        input.d_out += d_input
+        return self.d_out
 
 class Graph:
     """A base class for computation graphs."""
@@ -154,14 +184,11 @@ class Graph:
 
     def backward(self) -> None:
         """Computes the backward pass over the graph."""
-
         # do topo sort
         topo_sorted = self.topo_sort()
-
         # initiate the vjp of each output node
         for node in self.out_nodes:
             node.d_out = np.array([[1.]])
-            
         # now call backward on every node in topo order
         for node in topo_sorted:
             node.backward()

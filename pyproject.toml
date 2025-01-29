@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gradflow"
+version = "0.0.1"
+authors = [
+  { name="Derek Everett", email="derekeverett@gmail.com" },
+]
+description = "A lightweight package for building differentiable computation graphs and machine learning."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
