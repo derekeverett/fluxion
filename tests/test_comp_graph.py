@@ -28,12 +28,16 @@ class TestCompGraph(unittest.TestCase):
         # true outputs
         self.y_true = np.array([true_fct(z) for z in self.x_np])
 
-    def ag_test_function(self, input):
+    def ag_test_embed_function(self, input):
         z = autograd.numpy.dot(input, self.w_A_np)
         z = autograd.numpy.tanh(z)
         z = autograd.numpy.dot(z, self.w_C_np)
+        return z
+    
+    def ag_test_loss_function(self, input):
+        z = self.ag_test_embed_function(input)
         l = autograd.numpy.mean( (z - self.y_true)**2. )
-        return l, z
+        return l
         
     def test_NN(self):
 
@@ -55,15 +59,27 @@ class TestCompGraph(unittest.TestCase):
         y = linear2.forward(act1, w_C)
         l = loss.forward(linear2, self.y_true)
 
-        l_ag, y_ag = self.ag_test_function(self.x_np)
+        y_ag = self.ag_test_embed_function(self.x_np)
+        l_ag = self.ag_test_loss_function(self.x_np)
         
+        # checks the embeddings
         result   = y
         expected = y_ag
-        assert np.allclose(result, expected), f"CNOT test failed: {result} != {expected}"
+        assert np.allclose(result, expected), f"Comparison of embeddings to autograd.numpy failed: {result} != {expected}"
 
+        # checks the loss function
         result   = l
         expected = l_ag
-        assert np.allclose(result, expected), f"CNOT test failed: {result} != {expected}"
+        assert np.allclose(result, expected), f"Comparison of loss to autograd.numpy failed: {result} != {expected}"
+
+        # check the gradients
+        my_graph = cg.Graph("my_fun", [loss])
+        my_graph.backward()
+
+        dl_dx_ag = autograd.elementwise_grad(self.ag_test_loss_function)(self.x_np)
+        result = x.d_out
+        expected = dl_dx_ag
+        assert np.allclose(result, expected), f"Comparison of gradient to autograd.numpy failed: {result} != {expected}"
 
 
 if __name__ == '__main__':
