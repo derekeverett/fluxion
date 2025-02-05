@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 import gradflow.comp_graph as cg
 import autograd
+import networkx
 
 np.random.seed(42)
 
@@ -38,6 +39,47 @@ class TestCompGraph(unittest.TestCase):
         z = self.ag_test_embed_function(input)
         l = autograd.numpy.mean( (z - self.y_true)**2. )
         return l
+
+    def test_topo_sort(self):
+
+        a = cg.Node("a")
+        b = cg.Node("b")
+        c = cg.Node("c")
+        d = cg.Node("d")
+        e = cg.Node("e")
+        f = cg.Node("f")
+
+        #     a     b
+        #    / \   / \
+        #   c   d /   e
+        #    \   /
+        #     \ /
+        #      f  
+
+        nxgraph = networkx.DiGraph()
+        nxgraph.add_edges_from([(a, c),
+                              (a, d),
+                              (b, f),
+                              (b, e),
+                              (c, f)
+                              ])
+        all_topos = list(networkx.algorithms.dag.all_topological_sorts(nxgraph))
+        
+        # define the CG
+        c.inputs = [a]
+        d.inputs = [a]
+        e.inputs = [b]
+        f.inputs = [c, b]
+        my_cg = cg.Graph("my_graph", [d, e, f])
+        # the CG topo_sort() method actually does a reverse topo sort 
+        # w.r.t inputs, because this is the relevant sort for backpropagation
+        my_topo = [n for n in my_cg.topo_sort()]
+        # so to compare with an ordinary topo sort w.r.t inputs, we need to 
+        # reverse the output of the CG topo_sort() method
+        my_topo.reverse()
+
+        assert my_topo in all_topos, f"CG topo sort failed"
+
         
     def test_NN(self):
 
