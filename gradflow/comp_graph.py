@@ -40,6 +40,9 @@ class Value(Node):
     def backward(self) -> np.array:
         return self.d_out
 
+    def update(self, new_data: np.array):
+        self.out = new_data
+
 class Dot(Node):
     """This node computes a np.dot operation on the input nodes."""
 
@@ -200,4 +203,8 @@ class Graph:
         """Step optimizer for all Value nodes in a Graph with flag optimize=True."""
         for node in self.all_nodes:
             if node is Value and node.optimize:
-                pass # TODO - implement gradient descent and ADAM
+                # Gradient Descent implemented inline for now
+                # TODO: generalize this to allow other options/better encapsulation
+                lr = 1e-3
+                new_data = node.out - lr * node.d_out
+                node.update(new_data)
