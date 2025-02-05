@@ -28,9 +28,10 @@ class Node:
 class Value(Node):
     """This computation graph node stores a value without inputs."""
 
-    def __init__(self, name: str, data: np.array) -> None:
+    def __init__(self, name: str, data: np.array, optimize: bool = False) -> None:
         super().__init__(name)
         self.out = data
+        self.optimize = optimize
 
     def forward(self) -> np.array:
         self.d_out = np.zeros_like(self.out)
@@ -164,6 +165,7 @@ class Graph:
     def __init__(self, name: str, out_nodes: List['Node']) -> None:
         self.name = name
         self.out_nodes = out_nodes
+        self.all_nodes = set()
 
     def topo_sort(self) -> List['Node']:
         topo_sorted = []
@@ -177,9 +179,10 @@ class Graph:
         
         for node in self.out_nodes:
             build_topo(node)
-        # print(f"reversed(topo_sorted): ")
-        # for node in reversed(topo_sorted):
-        #     print(f"{node.name}")
+
+        # store all visited nodes in self.all_nodes
+        self.all_nodes = visited
+
         return reversed(topo_sorted)
 
     def backward(self) -> None:
@@ -192,3 +195,9 @@ class Graph:
         # now call backward on every node in topo order
         for node in topo_sorted:
             node.backward()
+
+    def step_optimizer(self, **kwargs):
+        """Step optimizer for all Value nodes in a Graph with flag optimize=True."""
+        for node in self.all_nodes:
+            if node is Value and node.optimize:
+                pass # TODO - implement gradient descent and ADAM
