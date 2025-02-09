@@ -5,14 +5,15 @@ from gradflow.math_util import softmax, cross_entropy
 # a class for a differential computation graph
 # based in part on https://github.com/davidrosenberg/mlcourse/blob/gh-pages/Notebooks/computation-graph/computation-graph-framework.ipynb
 
+
 class Node:
     """A base class for computation graph nodes."""
-    
+
     def __init__(self, name: str) -> None:
         self.name = name
         self.out: Optional[np.array] = None
         self.d_out: Optional[np.array] = None
-        self.inputs: List['Node'] = []
+        self.inputs: List["Node"] = []
 
     def forward(self, *args, **kwargs) -> np.array:
         """Computes the forward pass of the node."""
@@ -25,6 +26,7 @@ class Node:
     def vjp_fun(self, *args, **kwargs) -> np.array:
         """Computes the vector-Jacobian product for the node."""
         raise NotImplementedError("VJP function must be implemented in subclasses.")
+
 
 class Value(Node):
     """This computation graph node stores a value without inputs."""
@@ -44,6 +46,7 @@ class Value(Node):
     def update(self, new_data: np.array):
         self.out = new_data
 
+
 class Dot(Node):
     """This node computes a np.dot operation on the input nodes."""
 
@@ -55,7 +58,7 @@ class Dot(Node):
         self.out = np.dot(lhs.out, rhs.out)
         self.d_out = np.zeros_like(self.out)
         return self.out
-    
+
     def vjp_fun_lhs(self, input: np.array, mult: np.array, vec: np.array) -> np.array:
         # print(f"input.shape, mult.shape, vec.shape = {input.shape}, {mult.shape}, {vec.shape}")
         vjp = np.dot(vec, mult.T)
@@ -84,7 +87,8 @@ class Dot(Node):
         # print(f"d_rhs.shape: {d_rhs.shape}")
         rhs.d_out += d_rhs
         return self.d_out
-    
+
+
 class Tanh(Node):
     """This node computes a np.tanh operation on the input node."""
 
@@ -96,10 +100,10 @@ class Tanh(Node):
         self.out = np.tanh(input.out)
         self.d_out = np.zeros_like(self.out)
         return self.out
-    
+
     def vjp_fun(self, input: np.array, vec: np.array) -> np.array:
         # The VJP w.r.t. input of np.tanh(input)
-        sech2 = 1./ (np.cosh(input)**2.)
+        sech2 = 1.0 / (np.cosh(input) ** 2.0)
         return vec * sech2
 
     def backward(self) -> np.array:
@@ -108,7 +112,8 @@ class Tanh(Node):
         d_input = self.vjp_fun(input.out, self.d_out)
         input.d_out += d_input
         return self.d_out
-    
+
+
 class ReLU(Node):
     """This node computes a ReLU operation on the input node."""
 
@@ -120,10 +125,10 @@ class ReLU(Node):
         self.out = input.out * (input.out > 0)
         self.d_out = np.zeros_like(self.out)
         return self.out
-    
+
     def vjp_fun(self, input: np.array, vec: np.array) -> np.array:
         # The VJP w.r.t. input of ReLU(input)
-        fac = 1. * (input > 0)
+        fac = 1.0 * (input > 0)
         return vec * fac
 
     def backward(self) -> np.array:
@@ -132,7 +137,8 @@ class ReLU(Node):
         d_input = self.vjp_fun(input.out, self.d_out)
         input.d_out += d_input
         return self.d_out
-    
+
+
 class MSELoss(Node):
     """This node computes the mean squared error."""
 
@@ -141,17 +147,17 @@ class MSELoss(Node):
 
     def forward(self, y: Node, y_true: np.array) -> np.array:
         self.inputs = [y]  # store references to input nodes
-        err = (y.out - y_true)
+        err = y.out - y_true
         self.err = err
         n = err.shape[0]
         self.out = np.dot(err.T, err) / n
         self.d_out = np.zeros_like(self.out)
         return self.out
-    
+
     def vjp_fun(self, vec: np.array) -> np.array:
         # The VJP f(y) = (err)^2 = (y - y_true)^2 w.r.t. y
         n = self.err.shape[0]
-        return vec * 2*self.err/n
+        return vec * 2 * self.err / n
 
     def backward(self) -> np.array:
         # Accumulate gradient into inputs w/ chain rule
@@ -159,7 +165,8 @@ class MSELoss(Node):
         d_input = self.vjp_fun(self.d_out)
         input.d_out += d_input
         return self.d_out
-    
+
+
 class CrossEntropyLoss(Node):
     """This node computes the mean cross entropy loss."""
 
@@ -170,14 +177,14 @@ class CrossEntropyLoss(Node):
         self.inputs = [y]  # store references to input nodes
         n = y.shape[0]
         self.err = softmax(y) - y_true
-        self.out = np.mean( cross_entropy(y, true_idx), keepdims=True )
+        self.out = np.mean(cross_entropy(y, true_idx), keepdims=True)
         self.d_out = np.zeros_like(self.out)
         return self.out
-    
+
     # see https://shivammehta25.github.io/posts/deriving-categorical-cross-entropy-and-softmax/
     def vjp_fun(self, vec: np.array) -> np.array:
         n = self.err.shape[0]
-        return vec * self.err/n
+        return vec * self.err / n
 
     def backward(self) -> np.array:
         # Accumulate gradient into inputs w/ chain rule
@@ -186,24 +193,26 @@ class CrossEntropyLoss(Node):
         input.d_out += d_input
         return self.d_out
 
+
 class Graph:
     """A base class for computation graphs."""
-    
-    def __init__(self, name: str, out_nodes: List['Node']) -> None:
+
+    def __init__(self, name: str, out_nodes: List["Node"]) -> None:
         self.name = name
         self.out_nodes = out_nodes
         self.all_nodes = set()
 
-    def topo_sort(self) -> List['Node']:
+    def topo_sort(self) -> List["Node"]:
         topo_sorted = []
         visited = set()
+
         def build_topo(v):
             if v not in visited:
                 visited.add(v)
                 for in_node in v.inputs:
                     build_topo(in_node)
                 topo_sorted.append(v)
-        
+
         for node in self.out_nodes:
             build_topo(node)
 
@@ -218,7 +227,7 @@ class Graph:
         topo_sorted = self.topo_sort()
         # initiate the vjp of each output node
         for node in self.out_nodes:
-            node.d_out = np.array([[1.]])
+            node.d_out = np.array([[1.0]])
         # now call backward on every node in topo order
         for node in topo_sorted:
             node.backward()

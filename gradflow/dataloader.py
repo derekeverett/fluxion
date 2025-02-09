@@ -6,11 +6,13 @@ from PIL import Image
 import math
 import random
 
-class DataLoader:
 
+class DataLoader:
     """A base class for data loaders."""
 
-    def __init__(self, path_to_data: str, batch_size: int=512, split: str='train') -> None:
+    def __init__(
+        self, path_to_data: str, batch_size: int = 512, split: str = "train"
+    ) -> None:
         self.path_to_data = path_to_data
         self.batch_size = batch_size
         self.inputs = []
@@ -22,40 +24,49 @@ class DataLoader:
 
     def download(self) -> None:
         """DownLoad the dataset to disk"""
-        raise NotImplementedError("load_into_memory() must be implemented in subclasses.")
+        raise NotImplementedError(
+            "load_into_memory() must be implemented in subclasses."
+        )
 
     def load_into_memory(self) -> None:
         """Loads the entire dataset into memory"""
-        raise NotImplementedError("load_into_memory() must be implemented in subclasses.")
-    
+        raise NotImplementedError(
+            "load_into_memory() must be implemented in subclasses."
+        )
+
     def get_next_batch(self) -> Tuple[List, List]:
         """Grabs the next batch of data."""
         start = self.batch_size * self.batch_iter
-        end   = self.batch_size * (self.batch_iter + 1)
-        end   = min(end, self.size)
+        end = self.batch_size * (self.batch_iter + 1)
+        end = min(end, self.size)
         to_take = np.arange(start, end)
         self.batch_iter = (self.batch_iter + 1) % self.n_batch
-        return ([self.inputs[idx] for idx in to_take], 
-                [self.targets[idx] for idx in to_take]
-                )
-    
+        return (
+            [self.inputs[idx] for idx in to_take],
+            [self.targets[idx] for idx in to_take],
+        )
+
     def shuffle(self) -> None:
         """Shuffle the order of the dataset randomly."""
         data = list(zip(self.inputs, self.targets))
         random.shuffle(data)
         self.inputs, self.targets = zip(*data)
 
-class MNISTLoader(DataLoader):
 
+class MNISTLoader(DataLoader):
     """A dataloader for the MNIST dataset of 60K images of handwritten digits."""
 
-    def __init__(self, path_to_data: str, batch_size: int=512, split: str='train') -> None:
+    def __init__(
+        self, path_to_data: str, batch_size: int = 512, split: str = "train"
+    ) -> None:
         super().__init__(path_to_data, batch_size, split)
 
     def download(self) -> None:
         """DownLoad the dataset to disk"""
         print(f"Cloning MNIST into {self.path_to_data}")
-        os.system(f"git clone https://github.com/rasbt/mnist-pngs.git {self.path_to_data}")
+        os.system(
+            f"git clone https://github.com/rasbt/mnist-pngs.git {self.path_to_data}"
+        )
 
     def load_into_memory(self) -> None:
         # check if the repo exists at the path
@@ -63,7 +74,9 @@ class MNISTLoader(DataLoader):
             self.download()
 
         data_dir = f"{self.path_to_data}/{self.split}"
-        label_set = [os.path.basename(d) for d in glob.glob(f"{data_dir}/*") if os.path.isdir(d)]
+        label_set = [
+            os.path.basename(d) for d in glob.glob(f"{data_dir}/*") if os.path.isdir(d)
+        ]
         # sort the label set and enumerate
         label_set.sort()
 
@@ -80,4 +93,4 @@ class MNISTLoader(DataLoader):
                 self.targets.append(label_map[label])
 
         self.size = len(self.targets)
-        self.n_batch = math.ceil( self.size / self.batch_size )
+        self.n_batch = math.ceil(self.size / self.batch_size)
