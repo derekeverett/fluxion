@@ -1,5 +1,5 @@
-# gradflow
-A minimal computational graph with autograd. 
+# fluxion
+A minimal computational graph with supporting gradient backpropagation. 
 
 ### some resources
 
