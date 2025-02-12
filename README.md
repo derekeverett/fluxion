@@ -1,6 +1,8 @@
 # fluxion
 A minimal and educational implementation of a computational graph supporting gradient backpropagation. 
 
-### some resources
+### installation
 
-https://github.com/davidrosenberg/mlcourse/blob/gh-pages/Notebooks/computation-graph/computation-graph-framework.ipynb
+```
+pip install .
+```
