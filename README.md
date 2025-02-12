@@ -1,5 +1,5 @@
 # fluxion
-A minimal computational graph with supporting gradient backpropagation. 
+A minimal and educational implementation of a computational graph supporting gradient backpropagation. 
 
 ### some resources
 
