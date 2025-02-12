@@ -13,11 +13,12 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
   "numpy",
-  "autograd",  # for unit test of gradients
-  "networkx",  # for unit test of topo sort
-  "Pillow",    # for loading pngs images from disk
-  "ipykernel", # for jupyter 
-  "matplotlib" # for example notebooks
+  "autograd",   # for unit test of gradients
+  "networkx",   # for unit test of topo sort
+  "Pillow",     # for loading pngs images from disk
+  "ipykernel",  # for jupyter 
+  "matplotlib", # for example notebooks
+  "tqdm",       # for progress bars
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
