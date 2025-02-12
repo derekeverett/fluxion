@@ -1,6 +1,6 @@
 from typing import List, Optional
 import numpy as np
-from gradflow.math_util import softmax, cross_entropy, label_to_one_hot
+from fluxion.math_util import softmax, cross_entropy, label_to_one_hot
 
 # a class for a differential computation graph
 # based in part on https://github.com/davidrosenberg/mlcourse/blob/gh-pages/Notebooks/computation-graph/computation-graph-framework.ipynb

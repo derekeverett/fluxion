@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-import gradflow.comp_graph as cg
+import fluxion.comp_graph as cg
 import autograd
 import networkx
 

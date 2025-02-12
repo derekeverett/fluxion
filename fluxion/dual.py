@@ -23,20 +23,3 @@ class Dual:
 
     def __pow__(self, beta: float):
         return Dual(self.v**beta, beta * self.d * (self.v**beta - 1.0))
-
-
-# class HyperVector():
-#     """A thing of my own construction (I think)."""
-
-#     def __init__(self, v: np.array, d: np.array):
-#         self.v = v
-#         self.d = d
-
-#     def __add__(self, other: 'HyperVector'):
-#         return HyperVector(self.v + other.v, self.d + other.d)
-
-#     def dot(self, other: 'HyperVector'):
-#         return HyperVector(
-#             np.dot(self.v.T, other.v),
-#             np.outer(self.v)
-#         )
