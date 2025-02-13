@@ -3,6 +3,7 @@
 # Any analytic function f(x) property that
 #    f(a + b*ε) = f(a) + b*f'(a)*ε
 
+
 class Dual:
     """A class for scalar dual numbers."""
 

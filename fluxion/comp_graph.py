@@ -179,7 +179,10 @@ class CrossEntropyLoss(Node):
     def forward(self, y: Node, true_idxs: List[int]) -> np.array:
         self.inputs = [y]  # store references to input nodes
         y_true = np.array(
-            [label_to_one_hot(label=true_idx, n_classes=self.n_classes) for true_idx in true_idxs]
+            [
+                label_to_one_hot(label=true_idx, n_classes=self.n_classes)
+                for true_idx in true_idxs
+            ]
         )
         self.err = softmax(y.out) - y_true
         self.out = np.mean(cross_entropy(y.out, true_idxs), keepdims=True)
