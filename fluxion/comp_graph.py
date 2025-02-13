@@ -5,6 +5,7 @@ from fluxion.math_util import softmax, cross_entropy, label_to_one_hot
 # a class for a differential computation graph
 # based in part on https://github.com/davidrosenberg/mlcourse/blob/gh-pages/Notebooks/computation-graph/computation-graph-framework.ipynb
 
+
 class Node:
     """A base class for computation graph nodes."""
 
@@ -26,6 +27,7 @@ class Node:
         """Computes the vector-Jacobian product for the node."""
         raise NotImplementedError("VJP function must be implemented in subclasses.")
 
+
 class Value(Node):
     """This computation graph node stores a value without inputs."""
 
@@ -43,6 +45,7 @@ class Value(Node):
 
     def update(self, new_data: np.array):
         self.out = new_data
+
 
 class Dot(Node):
     """This node computes a np.dot operation on the input nodes."""
@@ -87,6 +90,7 @@ class Dot(Node):
         rhs.d_out += d_rhs
         return self.d_out
 
+
 class Tanh(Node):
     """This node computes a np.tanh operation on the input node."""
 
@@ -111,6 +115,7 @@ class Tanh(Node):
         input.d_out += d_input
         return self.d_out
 
+
 class ReLU(Node):
     """This node computes a ReLU operation on the input node."""
 
@@ -134,6 +139,7 @@ class ReLU(Node):
         d_input = self.vjp_fun(input.out, self.d_out)
         input.d_out += d_input
         return self.d_out
+
 
 class MSELoss(Node):
     """This node computes the mean squared error."""
@@ -162,6 +168,7 @@ class MSELoss(Node):
         input.d_out += d_input
         return self.d_out
 
+
 class CrossEntropyLoss(Node):
     """This node computes the mean cross entropy loss."""
 
@@ -169,11 +176,13 @@ class CrossEntropyLoss(Node):
         super().__init__(name)
         self.n_classes = n_classes
 
-    def forward(self, y: Node, true_idx: List[int]) -> np.array:
+    def forward(self, y: Node, true_idxs: List[int]) -> np.array:
         self.inputs = [y]  # store references to input nodes
-        y_true = np.array([label_to_one_hot(label=l, n_classes=self.n_classes) for l in true_idx])
+        y_true = np.array(
+            [label_to_one_hot(label=true_idx, n_classes=self.n_classes) for true_idx in true_idxs]
+        )
         self.err = softmax(y.out) - y_true
-        self.out = np.mean(cross_entropy(y.out, true_idx), keepdims=True)
+        self.out = np.mean(cross_entropy(y.out, true_idxs), keepdims=True)
         self.d_out = np.zeros_like(self.out)
         return self.out
 
@@ -189,6 +198,7 @@ class CrossEntropyLoss(Node):
         # print(f"backward in CrossEntropyLoss, d_input = {d_input}, input.d_out = {input.d_out}")
         input.d_out += d_input
         return self.d_out
+
 
 class Graph:
     """A base class for computation graphs."""

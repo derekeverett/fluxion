@@ -1,25 +1,23 @@
-from typing import List, Optional
-import numpy as np
-
-# a class for a differential computation graph
-# based in part on https://github.com/davidrosenberg/mlcourse/blob/gh-pages/Notebooks/computation-graph/computation-graph-framework.ipynb
-
+# A class that implements hyperreal dual numbers,
+# a + b*ε, where a,b are real numbers and ε^2 = 0.
+# Any analytic function f(x) property that
+#    f(a + b*ε) = f(a) + b*f'(a)*ε
 
 class Dual:
     """A class for scalar dual numbers."""
 
-    def __init__(self, v: float, d: float):
-        self.v = v
-        self.d = d
+    def __init__(self, a: float, b: float):
+        self.a = a
+        self.b = b
 
     def __add__(self, other: "Dual"):
-        return Dual(self.v + other.v, self.d + other.d)
+        return Dual(self.a + other.a, self.b + other.b)
 
     def __sub__(self, other: "Dual"):
-        return Dual(self.v - other.v, self.d - other.d)
+        return Dual(self.a - other.a, self.b - other.b)
 
     def __mul__(self, other: "Dual"):
-        return Dual(self.v * other.v, self.v * other.d + self.d * other.v)
+        return Dual(self.a * other.a, self.a * other.b + self.b * other.a)
 
     def __pow__(self, beta: float):
-        return Dual(self.v**beta, beta * self.d * (self.v**beta - 1.0))
+        return Dual(self.a**beta, beta * self.b * (self.a**beta - 1.0))
