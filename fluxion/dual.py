@@ -5,7 +5,7 @@
 
 
 class Dual:
-    """A class for scalar dual numbers."""
+    """A class for hyperreal dual numbers."""
 
     def __init__(self, a: float, b: float):
         self.a = a

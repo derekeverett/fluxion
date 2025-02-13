@@ -43,7 +43,7 @@ class Value(Node):
     def backward(self) -> np.array:
         return self.d_out
 
-    def update(self, new_data: np.array):
+    def update(self, new_data: np.array) -> None:
         self.out = new_data
 
 
@@ -54,39 +54,24 @@ class Dot(Node):
         super().__init__(name)
 
     def forward(self, lhs: Node, rhs: Node) -> np.array:
-        self.inputs = [lhs, rhs]  # store references to input nodes
+        self.inputs = [lhs, rhs]
         self.out = np.dot(lhs.out, rhs.out)
         self.d_out = np.zeros_like(self.out)
         return self.out
 
     def vjp_fun_lhs(self, input: np.array, mult: np.array, vec: np.array) -> np.array:
-        # print(f"input.shape, mult.shape, vec.shape = {input.shape}, {mult.shape}, {vec.shape}")
         vjp = np.dot(vec, mult.T)
-        # print(f"vjp.shape = {vjp.shape}")
         return vjp
 
     def vjp_fun_rhs(self, input: np.array, mult: np.array, vec: np.array) -> np.array:
-        # print(f"input.shape, mult.shape, vec.shape = {input.shape}, {mult.shape}, {vec.shape}")
-        # vjp = np.dot(vec, mult).T
         vjp = np.dot(vec.T, mult).T
-        # print(f"vjp.shape = {vjp.shape}")
         return vjp
 
     def backward(self) -> np.array:
-        # Accumulate gradient into inputs w/ chain rule
         lhs, rhs = self.inputs[0], self.inputs[1]
-        # print(f"lhs.d_out.shape: {lhs.d_out.shape}")
-        # print(f"lhs.d_out: {lhs.d_out}")
         d_lhs = self.vjp_fun_lhs(lhs.out, rhs.out, self.d_out)
-        # print(f"d_lhs.shape: {d_lhs.shape}")
-        # print(f"backward in Dot, d_lhs = {d_lhs}, lhs.d_out = {lhs.d_out}")
         lhs.d_out += d_lhs
-
-        # print(f"rhs.d_out.shape: {rhs.d_out.shape}")
-        # print(f"rhs.d_out: {rhs.d_out}")
         d_rhs = self.vjp_fun_rhs(rhs.out, lhs.out, self.d_out)
-        # print(f"d_rhs.shape: {d_rhs.shape}")
-        # print(f"backward in Dot, d_rhs = {d_rhs}, rhs.d_out = {rhs.d_out}")
         rhs.d_out += d_rhs
         return self.d_out
 
@@ -98,18 +83,16 @@ class Tanh(Node):
         super().__init__(name)
 
     def forward(self, input: Node) -> np.array:
-        self.inputs = [input]  # store references to input nodes
+        self.inputs = [input]
         self.out = np.tanh(input.out)
         self.d_out = np.zeros_like(self.out)
         return self.out
 
     def vjp_fun(self, input: np.array, vec: np.array) -> np.array:
-        # The VJP w.r.t. input of np.tanh(input)
         sech2 = 1.0 / (np.cosh(input) ** 2.0)
         return vec * sech2
 
     def backward(self) -> np.array:
-        # Accumulate gradient into inputs w/ chain rule
         input = self.inputs[0]
         d_input = self.vjp_fun(input.out, self.d_out)
         input.d_out += d_input
@@ -123,18 +106,16 @@ class ReLU(Node):
         super().__init__(name)
 
     def forward(self, input: Node) -> np.array:
-        self.inputs = [input]  # store references to input nodes
+        self.inputs = [input]
         self.out = input.out * (input.out > 0)
         self.d_out = np.zeros_like(self.out)
         return self.out
 
     def vjp_fun(self, input: np.array, vec: np.array) -> np.array:
-        # The VJP w.r.t. input of ReLU(input)
         fac = 1.0 * (input > 0)
         return vec * fac
 
     def backward(self) -> np.array:
-        # Accumulate gradient into inputs w/ chain rule
         input = self.inputs[0]
         d_input = self.vjp_fun(input.out, self.d_out)
         input.d_out += d_input
@@ -148,7 +129,7 @@ class MSELoss(Node):
         super().__init__(name)
 
     def forward(self, y: Node, y_true: np.array) -> np.array:
-        self.inputs = [y]  # store references to input nodes
+        self.inputs = [y]
         err = y.out - y_true
         self.err = err
         n = err.shape[0]
@@ -157,12 +138,10 @@ class MSELoss(Node):
         return self.out
 
     def vjp_fun(self, vec: np.array) -> np.array:
-        # The VJP f(y) = (err)^2 = (y - y_true)^2 w.r.t. y
         n = self.err.shape[0]
         return vec * 2 * self.err / n
 
     def backward(self) -> np.array:
-        # Accumulate gradient into inputs w/ chain rule
         input = self.inputs[0]
         d_input = self.vjp_fun(self.d_out)
         input.d_out += d_input
@@ -177,7 +156,7 @@ class CrossEntropyLoss(Node):
         self.n_classes = n_classes
 
     def forward(self, y: Node, true_idxs: List[int]) -> np.array:
-        self.inputs = [y]  # store references to input nodes
+        self.inputs = [y]
         y_true = np.array(
             [
                 label_to_one_hot(label=true_idx, n_classes=self.n_classes)
@@ -195,10 +174,8 @@ class CrossEntropyLoss(Node):
         return vec * self.err / n
 
     def backward(self) -> np.array:
-        # Accumulate gradient into inputs w/ chain rule
         input = self.inputs[0]
         d_input = self.vjp_fun(self.d_out)
-        # print(f"backward in CrossEntropyLoss, d_input = {d_input}, input.d_out = {input.d_out}")
         input.d_out += d_input
         return self.d_out
 
@@ -225,7 +202,6 @@ class Graph:
         for node in self.out_nodes:
             build_topo(node)
 
-        # store all visited nodes in self.all_nodes
         self.all_nodes = visited
 
         return reversed(topo_sorted)
@@ -247,7 +223,5 @@ class Graph:
             if isinstance(node, Value) and node.optimize:
                 # Gradient Descent implemented inline for now
                 # TODO: generalize this to allow other options/better encapsulation
-                lr = 1e-3
                 new_data = node.out - lr * node.d_out
-                # print(f"updating {node.name} by grad {node.d_out}")
                 node.update(new_data)
