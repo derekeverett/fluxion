@@ -1,11 +1,11 @@
-# A class that implements hyperreal dual numbers,
-# a + b*ε, where a,b are real numbers and ε^2 = 0.
-# Any analytic function f(x) property that
-#    f(a + b*ε) = f(a) + b*f'(a)*ε
-
-
 class Dual:
-    """A class for hyperreal dual numbers."""
+    """
+    A class that implementes hyperreal dual numbers.
+    These are numbers of the form a + b*ε,
+    where a,b are real numbers and ε^2 = 0.
+    Any analytic function f(x) has the property that
+    f(a + b*ε) = f(a) + b*f'(a)*ε.
+    """
 
     def __init__(self, a: float, b: float):
         self.a = a
