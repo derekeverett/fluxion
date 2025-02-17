@@ -5,7 +5,7 @@ import numpy as np
 def softmax(z: np.array, axis: int = -1) -> np.array:
     """
     Computes the softmax function safely, avoiding overflow by first
-    subtracting the maximum logit value. 
+    subtracting the maximum logit value.
     See https://jaykmody.com/blog/stable-softmax/ for explanation.
 
     Args:
@@ -24,7 +24,7 @@ def softmax(z: np.array, axis: int = -1) -> np.array:
 def log_softmax(z: np.array, axis: int = -1) -> np.array:
     """
     Computes the log-softmax function safely, avoiding overflow by first
-    subtracting the maximum logit value. 
+    subtracting the maximum logit value.
     See https://jaykmody.com/blog/stable-softmax/ for explanation.
 
     Args:
@@ -40,8 +40,8 @@ def log_softmax(z: np.array, axis: int = -1) -> np.array:
 
 def cross_entropy(y_pred: np.array, true_idx: List[int]) -> np.array:
     """
-    Computes the cross-entropy function safely, avoiding overflow by 
-    calling the safe log_softmax function. 
+    Computes the cross-entropy function safely, avoiding overflow by
+    calling the safe log_softmax function.
     See https://jaykmody.com/blog/stable-softmax/ for explanation.
 
     Args:
