@@ -2,12 +2,12 @@ from typing import List, Optional
 import numpy as np
 from fluxion.math_util import softmax, cross_entropy, label_to_one_hot
 
-# a class for a differential computation graph
-# based in part on https://github.com/davidrosenberg/mlcourse/blob/gh-pages/Notebooks/computation-graph/computation-graph-framework.ipynb
-
 
 class Node:
-    """A base class for computation graph nodes."""
+    """
+    A base class for computation graph nodes.
+    Inspired by https://github.com/davidrosenberg/mlcourse/blob/gh-pages/Notebooks/computation-graph/computation-graph-framework.ipynb.
+    """
 
     def __init__(self, name: str) -> None:
         self.name = name
@@ -37,13 +37,29 @@ class Value(Node):
         self.optimize = optimize
 
     def forward(self) -> np.array:
+        """
+        Computes the forward pass.
+
+        Returns:
+          A numpy array of the value currently stored.
+        """
         self.d_out = np.zeros_like(self.out)
         return self.out
 
-    def backward(self) -> np.array:
-        return self.d_out
+    def backward(self) -> None:
+        """
+        Computes the backward pass.
+        There are no parent nodes to accumulate gradients into.
+
+        """
 
     def update(self, new_data: np.array) -> None:
+        """
+        Updates the values stored by the node.
+
+        Args:
+          new_data: A numpy array defining the updated values.
+        """
         self.out = new_data
 
 
@@ -54,26 +70,61 @@ class Dot(Node):
         super().__init__(name)
 
     def forward(self, lhs: Node, rhs: Node) -> np.array:
+        """
+        Computes np.dot(lhs, rhs) operation on the inputs.
+
+        Args:
+          lhs: A numpy array of the left argument to np.dot.
+          rhs: A numpy array of the right argument to np.dot.
+
+        Returns:
+          A numpy array of the ouput.
+        """
         self.inputs = [lhs, rhs]
         self.out = np.dot(lhs.out, rhs.out)
         self.d_out = np.zeros_like(self.out)
         return self.out
 
     def vjp_fun_lhs(self, input: np.array, mult: np.array, vec: np.array) -> np.array:
+        """
+        Computes the vector-Jacobian product.
+
+        Args:
+          input: A numpy array of the variables for which the Jacobian of Dot(input, mult) is w.r.t.
+          mult: A numpy array of the quantity multipling input in the Dot(input, mult) function.
+          vec: A numpy array of the vector multiplying the Jacobian.
+
+        Returns:
+          A numpy array of the vector-Jacobian product.
+        """
         vjp = np.dot(vec, mult.T)
         return vjp
 
     def vjp_fun_rhs(self, input: np.array, mult: np.array, vec: np.array) -> np.array:
+        """
+        Computes the vector-Jacobian product.
+
+        Args:
+          input: A numpy array of the variables for which the Jacobian of Dot(mult, input) is w.r.t.
+          mult: A numpy array of the quantity multipling input in the Dot(mult, input) function.
+          vec: A numpy array of the vector multiplying the Jacobian.
+
+        Returns:
+          A numpy array of the vector-Jacobian product.
+        """
         vjp = np.dot(vec.T, mult).T
         return vjp
 
-    def backward(self) -> np.array:
+    def backward(self) -> None:
+        """
+        Computes the backward pass over the node.
+
+        """
         lhs, rhs = self.inputs[0], self.inputs[1]
         d_lhs = self.vjp_fun_lhs(lhs.out, rhs.out, self.d_out)
         lhs.d_out += d_lhs
         d_rhs = self.vjp_fun_rhs(rhs.out, lhs.out, self.d_out)
         rhs.d_out += d_rhs
-        return self.d_out
 
 
 class Tanh(Node):
@@ -92,11 +143,10 @@ class Tanh(Node):
         sech2 = 1.0 / (np.cosh(input) ** 2.0)
         return vec * sech2
 
-    def backward(self) -> np.array:
+    def backward(self) -> None:
         input = self.inputs[0]
         d_input = self.vjp_fun(input.out, self.d_out)
         input.d_out += d_input
-        return self.d_out
 
 
 class ReLU(Node):
@@ -115,11 +165,10 @@ class ReLU(Node):
         fac = 1.0 * (input > 0)
         return vec * fac
 
-    def backward(self) -> np.array:
+    def backward(self) -> None:
         input = self.inputs[0]
         d_input = self.vjp_fun(input.out, self.d_out)
         input.d_out += d_input
-        return self.d_out
 
 
 class MSELoss(Node):
@@ -141,11 +190,10 @@ class MSELoss(Node):
         n = self.err.shape[0]
         return vec * 2 * self.err / n
 
-    def backward(self) -> np.array:
+    def backward(self) -> None:
         input = self.inputs[0]
         d_input = self.vjp_fun(self.d_out)
         input.d_out += d_input
-        return self.d_out
 
 
 class CrossEntropyLoss(Node):
@@ -173,11 +221,10 @@ class CrossEntropyLoss(Node):
         n = self.err.shape[0]
         return vec * self.err / n
 
-    def backward(self) -> np.array:
+    def backward(self) -> None:
         input = self.inputs[0]
         d_input = self.vjp_fun(self.d_out)
         input.d_out += d_input
-        return self.d_out
 
 
 class Graph:
