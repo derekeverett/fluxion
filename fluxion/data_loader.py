@@ -23,7 +23,10 @@ class DataLoader:
         self.n_batch = 0
 
     def download(self) -> None:
-        """DownLoad the dataset to disk"""
+        """
+        Downloads a dataset to disk.
+
+        """
         raise NotImplementedError(
             "load_into_memory() must be implemented in subclasses."
         )
@@ -35,7 +38,12 @@ class DataLoader:
         )
 
     def get_next_batch(self) -> Tuple[List, List]:
-        """Grabs the next batch of data."""
+        """
+        Grabs the next batch of data.
+
+        Returns:
+          A Tuple of the list of inputs and list of target labels.
+        """
         start = self.batch_size * self.batch_iter
         end = self.batch_size * (self.batch_iter + 1)
         end = min(end, self.size)
@@ -47,7 +55,9 @@ class DataLoader:
         )
 
     def shuffle(self) -> None:
-        """Shuffle the order of the dataset randomly."""
+        """
+        Shuffles the order of the dataset randomly.
+        """
         data = list(zip(self.inputs, self.targets))
         random.shuffle(data)
         self.inputs, self.targets = zip(*data)
@@ -62,13 +72,18 @@ class MNISTLoader(DataLoader):
         super().__init__(path_to_data, batch_size, split)
 
     def download(self) -> None:
-        """DownLoad the dataset to disk"""
+        """
+        Downloads the dataset to disk.
+        """
         print(f"Cloning MNIST into {self.path_to_data}")
         os.system(
             f"git clone https://github.com/rasbt/mnist-pngs.git {self.path_to_data}"
         )
 
     def load_into_memory(self) -> None:
+        """
+        Copies the dataset from disk into memory.
+        """
         # check if the repo exists at the path
         if not os.path.exists(self.path_to_data):
             self.download()
