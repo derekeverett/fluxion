@@ -24,7 +24,7 @@ class DataLoader:
 
     def download(self) -> None:
         """
-        Downloads a dataset to disk.
+        Downloads a dataset from the web to disk.
 
         """
         raise NotImplementedError(
@@ -42,7 +42,8 @@ class DataLoader:
         Grabs the next batch of data.
 
         Returns:
-          A Tuple of the list of inputs and list of target labels.
+            A Tuple of the list of inputs and list of target labels
+            inside the next batch.
         """
         start = self.batch_size * self.batch_iter
         end = self.batch_size * (self.batch_iter + 1)
@@ -73,7 +74,7 @@ class MNISTLoader(DataLoader):
 
     def download(self) -> None:
         """
-        Downloads the dataset to disk.
+        Downloads the dataset from the web to disk.
         """
         print(f"Cloning MNIST into {self.path_to_data}")
         os.system(
