@@ -105,8 +105,9 @@ class MNISTLoader(DataLoader):
 
             for img_path in img_paths:
                 img = Image.open(img_path)
-                self.inputs.append(img)
+                self.inputs.append(np.array(img))
                 self.targets.append(label_map[label])
+                img.close()
 
         self.size = len(self.targets)
         self.n_batch = math.ceil(self.size / self.batch_size)
