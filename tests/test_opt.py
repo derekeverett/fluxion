@@ -1,6 +1,7 @@
 import unittest
 import numpy as np
 import fluxion.comp_graph as cg
+from fluxion.optimize import SGD
 
 np.random.seed(42)
 
@@ -20,8 +21,9 @@ class TestOpt(unittest.TestCase):
 
     def test_grad_desc(self):
 
-        # define the inputs, parameters, and network function nodes
-        x = cg.Value("x", self.x_np, optimize=True)  # input vector
+        # define the inputs, parameters, optimizer, and network function nodes
+        opt = SGD(name="sgd", lr=self.lr, values=self.x_np, beta=0.9)
+        x = cg.Value("x", self.x_np, optimizer=opt, optimize=True)  # input vector
         loss = cg.MSELoss("mse")  # mean squared error loss
 
         for epoch in range(self.epochs):
@@ -31,7 +33,7 @@ class TestOpt(unittest.TestCase):
             fn_graph = cg.Graph("f(x)", [loss])
             fn_graph.backward()
             # step the optimizer to update weights
-            fn_graph.step_optimizer(lr=self.lr)
+            fn_graph.step_optimizer()
 
         # checks the embeddings
         result = x.out

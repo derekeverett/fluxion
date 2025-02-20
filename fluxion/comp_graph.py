@@ -1,6 +1,7 @@
 from typing import List, Optional
 import numpy as np
 from fluxion.math_util import softmax, cross_entropy, label_to_one_hot
+from fluxion.optimize import Optimizer
 
 
 class Node:
@@ -31,10 +32,17 @@ class Node:
 class Value(Node):
     """This computation graph node stores a value without inputs."""
 
-    def __init__(self, name: str, data: np.array, optimize: bool = False) -> None:
+    def __init__(
+        self,
+        name: str,
+        data: np.array,
+        optimizer: Optimizer = None,
+        optimize: bool = False,
+    ) -> None:
         super().__init__(name)
         self.out = data
         self.optimize = optimize
+        self.optimizer = optimizer
 
     def forward(self) -> np.array:
         """
@@ -356,16 +364,12 @@ class Graph:
         for node in topo_sorted:
             node.backward()
 
-    def step_optimizer(self, lr: float = 1e-3):
+    def step_optimizer(self):
         """
         Updates the values stored by the Value nodes in the graph with flag optimize=True.
 
-        Args:
-            lr: A float defining the learning rate.
         """
         for node in self.all_nodes:
             if isinstance(node, Value) and node.optimize:
-                # Gradient Descent implemented inline for now
-                # TODO: generalize this to allow other options/better encapsulation
-                new_data = node.out - lr * node.d_out
-                node.update(new_data)
+                node.optimizer.step(node.d_out)
+                node.update(node.optimizer.values)
