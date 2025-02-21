@@ -25,7 +25,10 @@ class SGD(Optimizer):
         self.mom_vec = np.zeros_like(values)
 
     def step(self, grad: np.array) -> None:
-        """Steps stochastic gradient descent (with momentum) one iteration."""
+        """Steps stochastic gradient descent (with momentum) one iteration.
+
+        Args:
+            grad: a numpy array containing the gradient w.r.t. values."""
 
         delta = self.lr * grad + self.beta * self.mom_vec
         self.mom_vec = delta
