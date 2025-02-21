@@ -63,6 +63,16 @@ class DataLoader:
         random.shuffle(data)
         self.inputs, self.targets = zip(*data)
 
+    def normalize(self) -> None:
+        """
+        Normalizes input data to have zero mean and unit variance in each dimension.
+        """
+        inputs_as_np = np.array(self.inputs)
+        mu = np.mean(inputs_as_np, axis=0, keepdims=True)
+        sigma = np.std(inputs_as_np, axis=0, keepdims=True)
+        inputs_as_np = (inputs_as_np - mu) / (sigma + 1e-6)
+        self.inputs = list(inputs_as_np)
+
 
 class MNISTLoader(DataLoader):
     """A dataloader for the MNIST dataset of 60K images of handwritten digits."""
@@ -80,16 +90,6 @@ class MNISTLoader(DataLoader):
         os.system(
             f"git clone https://github.com/rasbt/mnist-pngs.git {self.path_to_data}"
         )
-
-    def normalize(self) -> None:
-        """
-        Normalizes input data to have zero mean and unit variance in each dimension.
-        """
-        inputs_as_np = np.array(self.inputs)
-        mu = np.mean(inputs_as_np, axis=0, keepdims=True)
-        sigma = np.std(inputs_as_np, axis=0, keepdims=True)
-        inputs_as_np = (inputs_as_np - mu) / (sigma + 1e-5)
-        self.inputs = list(inputs_as_np)
 
     def load_into_memory(self) -> None:
         """

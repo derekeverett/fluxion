@@ -134,6 +134,107 @@ class Dot(Node):
         rhs.d_out += d_rhs
 
 
+class Bias(Node):
+    """This node computes a bias operation with broadcasting over the batch axis."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+
+    def forward(self, lhs: Node, rhs: Node) -> np.array:
+        """
+        Computes lhs + rhs on the inputs with broadcasting on rhs.
+
+        Args:
+            lhs: A numpy array of the left argument with shape (batch_size, (dims)).
+            rhs: A numpy array of the right argument with shape (1, (dims)).
+
+        Returns:
+            A numpy array of the ouput of shape (batch_size, (dims)).
+        """
+        self.inputs = [lhs, rhs]
+        self.out = lhs.out + rhs.out
+        self.d_out = np.zeros_like(self.out)
+        return self.out
+
+    def vjp_fun_lhs(self, vec: np.array) -> np.array:
+        """
+        Vector-Jacobian product for lhs (batch_size, dim)
+
+        Args:
+            vec: A numpy array of the vector multiplying the Jacobian.
+
+        Returns:
+            A numpy array of the vector-Jacobian product.
+        """
+        vjp = vec
+        return vjp
+
+    def vjp_fun_rhs(self, vec: np.array) -> np.array:
+        """
+        Vector-Jacobian product for rhs (1, dim) needs to sum over batch dimension.
+
+        Args:
+            vec: A numpy array of the vector multiplying the Jacobian.
+
+        Returns:
+            A numpy array of the vector-Jacobian product.
+        """
+        vjp = np.sum(vec, axis=0, keepdims=True)
+        return vjp
+
+    def backward(self) -> None:
+        """
+        Computes the backward pass over the node.
+
+        """
+        lhs, rhs = self.inputs[0], self.inputs[1]
+        d_lhs = self.vjp_fun_lhs(self.d_out)
+        lhs.d_out += d_lhs
+        d_rhs = self.vjp_fun_rhs(self.d_out)
+        rhs.d_out += d_rhs
+
+
+class Identity(Node):
+    """This node computes an identity operation on the input node."""
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+
+    def forward(self, input: Node) -> np.array:
+        """
+        Computes identity operation on the input.
+
+        Args:
+            input: A numpy array of the input.
+
+        Returns:
+            A numpy array of the ouput.
+        """
+
+        self.inputs = [input]
+        self.out = input.out
+        self.d_out = np.zeros_like(self.out)
+        return self.out
+
+    def vjp_fun(self, input: np.array, vec: np.array) -> np.array:
+        """
+        Computes the vector-Jacobian product.
+
+        Args:
+            input: A numpy array of the variables for which the Jacobian of input is w.r.t.
+            vec: A numpy array of the vector multiplying the Jacobian.
+        Returns:
+            A numpy array of the vector-Jacobian product.
+        """
+
+        return vec
+
+    def backward(self) -> None:
+        input = self.inputs[0]
+        d_input = self.vjp_fun(input.out, self.d_out)
+        input.d_out += d_input
+
+
 class Tanh(Node):
     """This node computes a np.tanh operation on the input node."""
 
