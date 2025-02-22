@@ -21,6 +21,8 @@ class DataLoader:
         self.split = split
         self.batch_iter = 0
         self.n_batch = 0
+        self.mu = None
+        self.sigma = None
 
     def download(self) -> None:
         """
@@ -63,15 +65,24 @@ class DataLoader:
         random.shuffle(data)
         self.inputs, self.targets = zip(*data)
 
-    def normalize(self) -> None:
+    def normalize(self, per_dim: bool = False) -> None:
         """
         Normalizes input data to have zero mean and unit variance in each dimension.
+
+        Arguments:
+            per_dim: whether the mean and standard deviation are computed separetly for each dimension
         """
         inputs_as_np = np.array(self.inputs)
-        mu = np.mean(inputs_as_np, axis=0, keepdims=True)
-        sigma = np.std(inputs_as_np, axis=0, keepdims=True)
+        if per_dim:
+            mu = np.mean(inputs_as_np, axis=0, keepdims=True)
+            sigma = np.std(inputs_as_np, axis=0, keepdims=True)
+        else:
+            mu = np.mean(inputs_as_np, keepdims=True)
+            sigma = np.std(inputs_as_np, keepdims=True)
         inputs_as_np = (inputs_as_np - mu) / (sigma + 1e-6)
         self.inputs = list(inputs_as_np)
+        self.mu = mu
+        self.sigma = sigma
 
 
 class MNISTLoader(DataLoader):
@@ -115,7 +126,7 @@ class MNISTLoader(DataLoader):
 
             for img_path in img_paths:
                 img = Image.open(img_path)
-                self.inputs.append(np.array(img, dtype=float))
+                self.inputs.append(np.array(img, dtype=float) / 255)
                 self.targets.append(label_map[label])
                 img.close()
 
