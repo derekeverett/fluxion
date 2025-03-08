@@ -1,6 +1,9 @@
 from typing import List, Optional
 import numpy as np
 from fluxion.math_util import softmax, cross_entropy, label_to_one_hot
+
+# from fluxion.math_util import im2col, col2im
+from fluxion.math_util_fast import col2im_6d_cython
 from fluxion.optimize import Optimizer
 
 
@@ -81,8 +84,8 @@ class Dot(Node):
         Computes np.dot(lhs, rhs) operation on the inputs.
 
         Args:
-            lhs: A numpy array of the left argument to np.dot.
-            rhs: A numpy array of the right argument to np.dot.
+            lhs: A Node of the left argument to np.dot.
+            rhs: A Node of the right argument to np.dot.
 
         Returns:
             A numpy array of the ouput.
@@ -145,8 +148,8 @@ class Bias(Node):
         Computes lhs + rhs on the inputs with broadcasting on rhs.
 
         Args:
-            lhs: A numpy array of the left argument with shape (batch_size, (dims)).
-            rhs: A numpy array of the right argument with shape (1, (dims)).
+            lhs: A Node of the left argument with shape (batch_size, (dims)).
+            rhs: A Node of the right argument with shape (1, (dims)).
 
         Returns:
             A numpy array of the ouput of shape (batch_size, (dims)).
@@ -194,6 +197,138 @@ class Bias(Node):
         rhs.d_out += d_rhs
 
 
+class Conv2D(Node):
+    """This node computes a 2D convolution operation on an input image node
+    using an input filter node."""
+
+    def __init__(self, name: str, stride: int = 1, pad: int = 0) -> None:
+        super().__init__(name)
+        self.stride = stride
+        self.pad = pad
+        self.img_cols = None
+
+    def forward(self, img: Node, filter: Node) -> np.array:
+        """
+        Computes convolution(img, filter) operation on the inputs.
+
+        Args:
+            img: A Node of the input image.
+            filter: A Node of the input filter.
+
+        Returns:
+            A numpy array of the ouput.
+        """
+        self.inputs = [img, filter]
+
+        (batch_size, chan_in, height_in, width_in) = img.out.shape
+        (chan_out, _, filt_size, _) = filter.out.shape
+
+        # Check dimensions
+        assert (
+            width_in + 2 * self.pad - filt_size
+        ) % self.stride == 0, "expected output width does not work"
+        assert (
+            height_in + 2 * self.pad - filt_size
+        ) % self.stride == 0, "expected output height does not work"
+        # Create output
+        height_out = (height_in + 2 * self.pad - filt_size) // self.stride + 1
+        width_out = (width_in + 2 * self.pad - filt_size) // self.stride + 1
+
+        # Pad the input
+        img_padded = np.pad(
+            img.out,
+            ((0, 0), (0, 0), (self.pad, self.pad), (self.pad, self.pad)),
+            mode="constant",
+        )
+        height_in_p = height_in + 2 * self.pad
+        width_in_p = width_in + 2 * self.pad
+
+        # Perform an im2col operation by picking clever strides
+        shape = (chan_in, filt_size, filt_size, batch_size, height_out, width_out)
+        strides = (
+            height_in_p * width_in_p,
+            width_in_p,
+            1,
+            chan_in * height_in_p * width_in_p,
+            self.stride * width_in_p,
+            self.stride,
+        )
+        strides = img.out.itemsize * np.array(strides)
+        img_stride = np.lib.stride_tricks.as_strided(
+            img_padded, shape=shape, strides=strides
+        )
+        self.img_cols = np.ascontiguousarray(img_stride)
+        self.img_cols.shape = (
+            chan_in * filt_size * filt_size,
+            batch_size * height_out * width_out,
+        )
+
+        # Now all our convolutions are a big matrix multiply
+        res = filter.out.reshape(chan_out, -1).dot(self.img_cols)
+
+        # Reshape the output
+        res.shape = (chan_out, batch_size, height_out, width_out)
+        self.out = res.transpose(1, 0, 2, 3)
+
+        # Be nice and return a contiguous array
+        self.out = np.ascontiguousarray(self.out)
+
+        self.d_out = np.zeros_like(self.out)
+        return self.out
+
+    def vjp_fun(self, img: np.array, filter: np.array) -> np.array:
+        """
+        Computes the vector-Jacobian product for both img and filter.
+
+        Args:
+            img: A numpy array of the variables img in convolution(img, filter).
+            filter: A numpy array of the variables filter in the convolution(img, filter).
+
+        Returns:
+            A tuple of numpy arrays of the vector-Jacobian products.
+        """
+
+        batch_size, chan_in, height_in, width_in = img.shape
+        chan_out, _, filter_height, filter_width = filter.shape
+        _, _, height_out, width_out = self.d_out.shape
+
+        d_out_reshaped = self.d_out.transpose(1, 0, 2, 3).reshape(chan_out, -1)
+        d_filter = d_out_reshaped.dot(self.img_cols.T).reshape(filter.shape)
+
+        d_img_cols = filter.reshape(chan_out, -1).T.dot(d_out_reshaped)
+        d_img_cols.shape = (
+            chan_in,
+            filter_height,
+            filter_width,
+            batch_size,
+            height_out,
+            width_out,
+        )
+        d_img = col2im_6d_cython(
+            d_img_cols,
+            batch_size,
+            chan_in,
+            height_in,
+            width_in,
+            filter_height,
+            filter_width,
+            self.pad,
+            self.stride,
+        )
+
+        return d_img, d_filter
+
+    def backward(self) -> None:
+        """
+        Computes the backward pass over the node.
+
+        """
+        img, filter = self.inputs[0], self.inputs[1]
+        d_img, d_filter = self.vjp_fun(img.out, filter.out)
+        img.d_out += d_img
+        filter.d_out += d_filter
+
+
 class Identity(Node):
     """This node computes an identity operation on the input node."""
 
@@ -205,7 +340,7 @@ class Identity(Node):
         Computes identity operation on the input.
 
         Args:
-            input: A numpy array of the input.
+            input: A Node of the input.
 
         Returns:
             A numpy array of the ouput.
@@ -230,8 +365,66 @@ class Identity(Node):
         return vec
 
     def backward(self) -> None:
+        """
+        Computes the backward pass over the node.
+
+        """
         input = self.inputs[0]
         d_input = self.vjp_fun(input.out, self.d_out)
+        input.d_out += d_input
+
+
+class FlattenImgForDense(Node):
+    """This node flattens the height, width and channel dimensions in a forward call,
+    and expands these dimensions in the backward call.
+    """
+
+    def __init__(self, name: str) -> None:
+        super().__init__(name)
+        self.batch_size = None
+        self.height = None
+        self.width = None
+        self.chan = None
+
+    def forward(self, input: Node) -> np.array:
+        """
+        Flattens the height, width and channel dimensions into a single dimension.
+
+        Args:
+            input: A Node of the input.
+
+        Returns:
+            A numpy array of the ouput.
+        """
+
+        self.inputs = [input]
+        (self.batch_size, self.height, self.width, self.chan) = input.out.shape
+        self.out = input.out.reshape(
+            (self.batch_size, self.height * self.width * self.chan)
+        )
+        self.d_out = np.zeros_like(self.out)
+        return self.out
+
+    def vjp_fun(self, vec: np.array) -> np.array:
+        """
+        Computes the vector-Jacobian product.
+
+        Args:
+            input: A numpy array of the variables for which the Jacobian of input is w.r.t.
+            vec: A numpy array of the vector multiplying the Jacobian.
+        Returns:
+            A numpy array of the vector-Jacobian product.
+        """
+
+        return vec.reshape((self.batch_size, self.height, self.width, self.chan))
+
+    def backward(self) -> None:
+        """
+        Computes the backward pass over the node.
+
+        """
+        input = self.inputs[0]
+        d_input = self.vjp_fun(self.d_out)
         input.d_out += d_input
 
 
@@ -246,7 +439,7 @@ class Tanh(Node):
         Computes np.tanh(input) operation on the input.
 
         Args:
-            input: A numpy array of the input to np.tanh.
+            input: A Node of the input to np.tanh.
 
         Returns:
             A numpy array of the ouput.
@@ -272,6 +465,10 @@ class Tanh(Node):
         return vec * sech2
 
     def backward(self) -> None:
+        """
+        Computes the backward pass over the node.
+
+        """
         input = self.inputs[0]
         d_input = self.vjp_fun(input.out, self.d_out)
         input.d_out += d_input
@@ -288,7 +485,7 @@ class ReLU(Node):
         Computes ReLU(input) operation on the input.
 
         Args:
-            input: A numpy array of the input to ReLU.
+            input: A Node of the input to ReLU.
 
         Returns:
             A numpy array of the ouput.
@@ -335,7 +532,7 @@ class MSELoss(Node):
         Computes the mean squared error.
 
         Args:
-            y: A numpy array of the predicted values.
+            y: A Node of the predicted values.
             y_true: A numpy array of the true values.
 
         Returns:
@@ -364,6 +561,10 @@ class MSELoss(Node):
         return vec * 2 * self.err / n
 
     def backward(self) -> None:
+        """
+        Computes the backward pass over the node.
+
+        """
         input = self.inputs[0]
         d_input = self.vjp_fun(self.d_out)
         input.d_out += d_input
@@ -381,7 +582,7 @@ class CrossEntropyLoss(Node):
         Computes the mean cross entropy loss.
 
         Args:
-            y: A numpy array of the predicted values.
+            y: A Node of the predicted values.
             true_idxs: A list of the true indices.
 
         Returns:
@@ -414,6 +615,10 @@ class CrossEntropyLoss(Node):
         return vec * self.err / n
 
     def backward(self) -> None:
+        """
+        Computes the backward pass over the node.
+
+        """
         input = self.inputs[0]
         d_input = self.vjp_fun(self.d_out)
         input.d_out += d_input
