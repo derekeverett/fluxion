@@ -1,5 +1,7 @@
 # fluxion
-A minimal and educational implementation of a computational graph supporting gradient backpropagation. 
+An educational implementation of a computational graph supporting gradient backpropagation. 
+This repository is intended to demonstrate the core concepts and algorithms underlying deep learning frameworks like PyTorch.
+
 
 ### installation
 
